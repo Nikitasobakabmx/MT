@@ -1,0 +1,134 @@
+packageClause
+    : 'package' IDENTIFIER ///
+    ;
+
+
+functionDecl
+    : 'func' IDENTIFIER parameters type? block ///
+    ;
+
+parameters/?/?
+    : '(' (parameterDecl (COMMA parameterDecl)* )? ')'
+    | '(' (expression (COMMA expression)* )? ')'
+    ;
+
+varDecl
+    : 'var' (varSpec | '(' (varSpec eos)* ')')
+    ;
+
+varSpec
+    : identifierList (type ('=' expressionList)? | '=' expressionList)
+    ;
+
+block
+    : '{' statementList? '}'
+    ;
+
+
+statementList
+    : (statement eos)+
+    ;
+
+
+statement
+    : varDecl
+    | returnStmt
+    | block
+    ;
+
+returnStmt
+    : 'return' expressionList?
+    ;
+
+expressionList
+    : expression (',' expression)*
+    ;
+
+expression
+    : operandName
+    | dataType
+    | funcExec
+    | expression ('*' | '/' | '%' | '<<' | '>>' | '&' | '&^') expression
+    | expression ('+' | '-' | '|' | '^') expression
+    | expression ('==' | '!=' | '<' | '<=' | '>' | '>=') expression
+    | expression '&&' expression
+    | expression '||' expression
+    ;
+
+parameterDecl ////
+    : identifierList? '...'? type
+    ;
+
+identifierList ///////
+    : IDENTIFIER type? (',' IDENTIFIER type?)*
+    ;
+
+type
+    : "int"
+    | "float"
+    | "string"
+    ;
+
+operandName
+    : IDENTIFIER
+    | IDENTIFIER '.' operandName
+    ;
+
+funcExec
+    :operandName parameters
+    ;
+
+dataType
+    : integer
+    | float
+    | string
+    ;
+integer
+    : DIGIT+
+
+float
+    : integer "." integer
+    ;
+string
+    : "\'" LITERA+ "\'"
+    ;
+
+
+
+
+    //////assssssss hole
+    string: "\"" LITER "\"";
+integer: "-"* DIGIT;
+fraction: "-"* DIGIT "." DIGIT;
+
+type: TYPE_INT | TYPE_STR | TYPE_FLOAT;
+
+package: PACKAGE string;
+funcDecl: FUNC string "(" statements? ")" type? block;
+
+statements: (statement ("," statement)*)?;
+statement: string type?;
+block: "{" (statementList eos)* "}";
+varDecl: VAR statement assignment?;
+assignment: ASSIGN execute | ASSIGN_ADD execute;
+execute: call | operation;
+operation: math_operation | string_operation;
+math_func: PLUS | MINUS | MULTIPLY | DIV;
+number: integer | fraction;
+math_operation: operand math_func operand;
+operand: math_operation | number;
+eos: ";" | "\n";
+call: string "(" statements ")";
+
+
+
+
+
+
+
+
+varList
+    : LITER varList
+    | COMMA SPACE LITER varList
+    |
+    ;

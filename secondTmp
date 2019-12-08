@@ -1,0 +1,51 @@
+program
+    : define
+    | block
+    | SPACE program
+    | NEW_LINE program
+    | TAB program
+    | EOF
+    ;
+
+define  
+    : SPACE define
+    | varDef
+    ;
+
+varDef
+    : VAR SPACE LITER parametres type
+    ;
+
+parametres
+    : SPACE parametres
+    | L_PAREN typed_identifyList
+    ;
+
+typed_identifyList
+    : typed_identyfy identifyList
+    | COMMA typed_identyfy identifyList
+    | R_PAREN
+    ;
+
+typed_identyfy
+    : LITER type
+    | SPACE typed_identyfy
+    ;
+
+type
+    : TYPE_FLOAT 
+    | TYPE_INT 
+    | TYPE_STR 
+    | TYPE_BOOL
+    | SPACE type
+    | block
+    ;
+
+block
+    : L_CURLY statementList
+    ;
+
+statementList
+    : SPACE statementList
+    | R_CURLY program
+    ;

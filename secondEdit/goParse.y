@@ -87,8 +87,10 @@ std::map<std::string, int> *vars = NULL;
 
 %%
 program
-    : define
-    | block
+    : define program
+    | block program
+    | call program
+    | var_and_func_ASSIGN program
     | SPACE program
     | NEW_LINE program
     | TAB program
@@ -96,34 +98,121 @@ program
     ;
 
 define  
-    : funcDef
-    | packageDef
+    : funcDef {std::cout <<"funcDef endl" <<std::endl;}
+    | packageDef {std::cout << "packageDef endl" <<std::endl;}
+    | varDef
     ;
 
 funcDef
-    : FUNC SPACE LITER parametres continiue
+    : FUNC SPACE LITER continiue
     ;
 
 packageDef
-    : PACKAGE SPACE LITER
+    : PACKAGE SPACE LITER 
     ;
+
+varDef 
+    : VAR varCallList
+    ;
+
+call
+    : LITER var_and_func_CALL
+    ;
+
+var_and_func_ASSIGN
+    : var_and_func_CALL continiue_assign;
+    
+continiue_assign
+    : SPACE continiue_assign
+    | ASSIGN varAsign
+    | ASSIGN_ADD varAsign
+    | MINUS ASSIGN varAsign
+    | MULTIPLY ASSIGN varAsign
+    | DIV ASSIGN varAsign
+    ;
+
+var_and_func_CALL
+    : LITER call_continiue
+    | DOT LITER call_continiue
+    | SPACE ASSIGN varAsign
+    | input_param
+    | ASSIGN varAsign
+    ;
+
+call_continiue
+    : SPACE
+    | SEMICOLON
+    | NEW_LINE
+    | var_and_func_CALL
+    ;
+
+typeDef
+    : TYPE_BOOL
+    | TYPE_FLOAT
+    | TYPE_INT
+    | TYPE_STR
+    ;
+
+continiueVarDef
+    : ASSIGN varAsign
+    | typeDef continiueVarDef
+    | SEMICOLON
+    | NEW_LINE
+    | SPACE varCallList
+    ;
+
+varCallList
+    : LITER varCallList
+    | COMMA varCallList
+    | continiueVarDef
+    ;
+
+
+varAsign
+    : SPACE varAsign
+    | LITER varAsign
+    | dataType varAsign
+    | COMMA varAsign
+    | NEW_LINE {std::cout << "tut vse" << std::endl;}
+    | SEMICOLON
+    ;
+
+dataType
+    : QUOTES LITER QUOTES
+    | D_QUOTES LITER D_QUOTES
+    | TRUE
+    | FALSE
+    | UNSIGNED
+    ;
+
 
 continiue
     : SPACE continiue
+    | parametres continiue
     | type continiue
     | block
     ;
 
+input_param
+    : L_PAREN untyped_identifyList
+    ;
+
+untyped_identifyList
+    : dataType untyped_identifyList
+    | COMMA untyped_identifyList
+    | SPACE untyped_identifyList
+    | call untyped_identifyList
+    | R_PAREN
+    ;
 
 parametres
-    : SPACE parametres
-    | L_PAREN typed_identifyList
+    : L_PAREN typed_identifyList
     ;
 
 typed_identifyList
     : typed_identyfy typed_identifyList
     | COMMA typed_identyfy typed_identifyList
-    | R_PAREN
+    | R_PAREN {std::cout << "params input" << std::endl;}
     ;
 
 typed_identyfy
@@ -142,10 +231,13 @@ block
     : L_CURLY statementList
     ;
 
-
 statementList
     : SPACE statementList
-    | R_CURLY NEW_LINE program
+    | NEW_LINE statementList
+    | varDef statementList
+    | var_and_func_ASSIGN statementList
+    | RETURN SPACE LITER statementList
+    | R_CURLY 
     ;
 
 %%

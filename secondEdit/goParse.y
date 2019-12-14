@@ -10,33 +10,16 @@
 #include <list>
 #include <iostream>
 
-
 extern int yylex(); 
 extern int yyparse(); 
 extern FILE* yyin;
 void yyerror(const char* s);
 
-class params
-{
-public:
-    std::string name;
-    int type;
-};
-
-class contain
-{
-public:
-    int reType;
-    std::vector<params> *values = NULL;
-};
-
+int str = 0;
 
 std::string *app;
 
-int curentLine = 0;
-
 std::list<std::string> *Errors = NULL;
-
 std::map<std::string, contain> *funcions = NULL;
 std::map<std::string, int> *vars = NULL;
 
@@ -46,8 +29,10 @@ std::map<std::string, int> *vars = NULL;
    struct sheet *table;
 }
 
-
-
+%type <table> program  define funcDef packageDef varDef continiueVarDef
+        varCallList var redefenition func_var_call call_parametres listParam
+        varAsign operations operands dataType continiue parametres typed_identifyList
+        typed_identyfy type block statementList return_statement integer
 %token <table> VAR 
 %token <table> SPACE 
 %token <table> PACKAGE
@@ -61,9 +46,9 @@ std::map<std::string, int> *vars = NULL;
 %token <table> LOGIC_AND
 %token <table> LOGIC_OR
 %token <table> LOGIC_NOT
-%token <table> L_PAREN
+%token <table> L_PAREN /* param */
 %token <table> R_PAREN
-%token <table> L_CURLY
+%token <table> L_CURLY /* block */
 %token <table> R_CURLY
 %token <table> COMMA
 %token <table> DOT
@@ -89,22 +74,40 @@ std::map<std::string, int> *vars = NULL;
 program
     : define program
     | block program
-    | call program
-    | var_and_func_ASSIGN program
     | SPACE program
     | NEW_LINE program
-    | TAB program
-    | END_OF_FILE
+    | MULTIPLY ASSIGN varAsign
     ;
 
 define  
-    : funcDef {std::cout <<"funcDef endl" <<std::endl;}
-    | packageDef {std::cout << "packageDef endl" <<std::endl;}
-    | varDef
+    : funcDef {}
+    | packageDef {}
+    | varDef {}
     ;
 
 funcDef
-    : FUNC SPACE LITER continiue
+    : FUNC SPACE LITER continiue {
+            contain tmp;
+            if($3->retype != NULL)
+            {
+                tmp.reType = *($3->retype);
+                $3 = $3->next;
+            }
+            tmp.values = to_vector($3);
+            funcions-> insert(std::pair<std::string,contain>(*(new std::string($3->line)),tmp));
+            }
+    ;
+
+continiue
+    : SPACE continiue {$$ = deepCopy($2);}
+    | parametres continiue {$$ = (struct sheet *)malloc(sizeof(struct sheet));
+                            $$->next = deepCopy($1);
+                            }
+    | type continiue{
+        $$ = deepCopy($1);
+        $$->retype = new int($$->type);
+        $$->next = deepCopy($2);}
+    | block {$$ = deepCopy($1);}
     ;
 
 packageDef
@@ -112,139 +115,203 @@ packageDef
     ;
 
 varDef 
-    : VAR varCallList
+    : VAR varCallList {$$ = deepCopy($2);
+            
+            auto xTmp = $$;
+            std::list<std::string>* tmp = new std::list<std::string>();
+            while(xTmp != NULL)
+            {
+                if(xTmp->type != LITER)
+                    break;
+                tmp->push_back(*(new std::string(xTmp->line)));
+                xTmp = xTmp->next;
+            }
+            auto type = xTmp->type;
+            for(auto it: *tmp)
+                try{
+                    vars->at(it);
+                    Errors->push_back(makeErrorMsg(*app, str,
+                                "redefinition",
+                                it));
+                }catch(std::out_of_range &ex)
+                {
+                    vars->insert(std::pair<std::string, int>(it, type));
+                }
+                
+            }
     ;
 
-call
-    : LITER var_and_func_CALL
+continiueVarDef
+    : ASSIGN varAsign {$$ = deepCopy($2);}
+    | type continiueVarDef {
+        $$ = deepCopy($1);
+        if($2 != NULL)
+        {
+            if($$->type != $2->type)
+                Errors->push_back(makeErrorMsg(*app, str,"incompatible type in initialization",*(new std::string($1->line))));
+        }
+    }
+    | SEMICOLON {$$ = NULL;}
+    | NEW_LINE {$$ = NULL;}
+    | SPACE varCallList {$$ = deepCopy($2);}
     ;
 
-var_and_func_ASSIGN
-    : var_and_func_CALL continiue_assign;
-    
-continiue_assign
-    : SPACE continiue_assign
-    | ASSIGN varAsign
+varCallList
+    : LITER varCallList {  
+        $1->next = $2;
+        $$ = deepCopy($1);
+    }
+    | COMMA varCallList {$$ = deepCopy($2);}
+    | continiueVarDef {$$ = $1;}
+    ;
+
+
+var
+    : LITER
+    {
+        bool tmp = false;
+        std::string sTmp($1->line);
+        try{
+            vars->at(sTmp);
+        }catch(std::out_of_range &ex){
+            tmp = true;
+        }
+        if(tmp)
+            try{
+                funcions->at(sTmp);
+                tmp = false;
+            }catch(std::out_of_range &ex){
+                tmp = true;
+            }
+
+        if(tmp)
+            Errors->push_back(makeErrorMsg(*app, str+1,
+                                "Undefined var",
+                                sTmp));
+    }
+    | DOT
+    ;
+
+redefenition
+    : ASSIGN varAsign
     | ASSIGN_ADD varAsign
     | MINUS ASSIGN varAsign
     | MULTIPLY ASSIGN varAsign
     | DIV ASSIGN varAsign
     ;
 
-var_and_func_CALL
-    : LITER call_continiue
-    | DOT LITER call_continiue
-    | SPACE ASSIGN varAsign
-    | input_param
-    | ASSIGN varAsign
+func_var_call
+    : var 
+    | call_parametres {}
+    | redefenition 
     ;
 
-call_continiue
-    : SPACE
-    | SEMICOLON
-    | NEW_LINE
-    | var_and_func_CALL
+call_parametres
+    : L_PAREN listParam {$$ = deepCopy($2);}
     ;
 
-typeDef
-    : TYPE_BOOL
-    | TYPE_FLOAT
-    | TYPE_INT
-    | TYPE_STR
+listParam
+    : R_PAREN {$$ = NULL;}
+    | SPACE listParam {$$ = deepCopy($2);}
+    | func_var_call listParam {$$ = deepCopy($1);
+                                $$->next = deepCopy($2);}
+    | COMMA listParam {$$ = deepCopy($2);}
     ;
-
-continiueVarDef
-    : ASSIGN varAsign
-    | typeDef continiueVarDef
-    | SEMICOLON
-    | NEW_LINE
-    | SPACE varCallList
-    ;
-
-varCallList
-    : LITER varCallList
-    | COMMA varCallList
-    | continiueVarDef
-    ;
-
 
 varAsign
-    : SPACE varAsign
-    | LITER varAsign
-    | dataType varAsign
+    : SPACE varAsign {if($2 != NULL)$$ = deepCopy($2);}
+    | operands varAsign {if($2 == NULL)$$ = $1;}
+    | operations
     | COMMA varAsign
-    | NEW_LINE {std::cout << "tut vse" << std::endl;}
-    | SEMICOLON
+    | NEW_LINE {$$ = NULL;}
+    | SEMICOLON {$$ = NULL;}
+    ;
+
+operations
+    : PLUS SPACE operands 
+    | MINUS SPACE operands
+    | DIV SPACE operands
+    | MULTIPLY SPACE operands
+    | LOGIC_AND SPACE operands
+    | LOGIC_OR SPACE operands
+    ;
+
+operands
+    : func_var_call {$$ = deepCopy($1);}
+    | dataType {$$ = deepCopy($1);}
     ;
 
 dataType
-    : QUOTES LITER QUOTES
-    | D_QUOTES LITER D_QUOTES
-    | TRUE
-    | FALSE
-    | UNSIGNED
+    : QUOTES LITER QUOTES { $$ = deepCopy($1);
+                            $$->type= TYPE_STR;}
+    | D_QUOTES LITER D_QUOTES{ $$ = deepCopy($1);
+                            $$->type= TYPE_STR;}
+    | TRUE                  { $$ = deepCopy($1);
+                            $$->type= TYPE_BOOL;}
+    | FALSE                 { $$ = deepCopy($1);
+                            $$->type= TYPE_BOOL;}
+    | integer               { $$ = deepCopy($1);
+                            $$->type= TYPE_INT;}
+    ;
+
+integer
+    : UNSIGNED {$$ = deepCopy($1);}
     ;
 
 
-continiue
-    : SPACE continiue
-    | parametres continiue
-    | type continiue
-    | block
-    ;
 
-input_param
-    : L_PAREN untyped_identifyList
-    ;
-
-untyped_identifyList
-    : dataType untyped_identifyList
-    | COMMA untyped_identifyList
-    | SPACE untyped_identifyList
-    | call untyped_identifyList
-    | R_PAREN
-    ;
 
 parametres
-    : L_PAREN typed_identifyList
+    : L_PAREN typed_identifyList {$$ = deepCopy($2);}
     ;
 
 typed_identifyList
-    : typed_identyfy typed_identifyList
-    | COMMA typed_identyfy typed_identifyList
-    | R_PAREN {std::cout << "params input" << std::endl;}
+    : typed_identyfy typed_identifyList {$$ = deepCopy($1);
+                                        $$->next = deepCopy($2);
+                                        }
+    | COMMA typed_identyfy typed_identifyList {$$ = deepCopy($2);
+                                        $$->next = deepCopy($3);
+                                        }
+    | R_PAREN {$$ = NULL;}
     ;
 
 typed_identyfy
-    : LITER SPACE type
+    : LITER SPACE type      {
+        vars->insert(std::pair<std::string,int>(*(new std::string($1->line)), $3->type));
+    }
     | SPACE typed_identyfy
     ;
 
 type
-    : TYPE_FLOAT 
-    | TYPE_INT 
-    | TYPE_STR 
-    | TYPE_BOOL
+    : TYPE_FLOAT    {$$ = deepCopy($1);}
+    | TYPE_INT      {$$ = deepCopy($1);}
+    | TYPE_STR      {$$ = deepCopy($1);}
+    | TYPE_BOOL     {$$ = deepCopy($1);}
     ;
 
 block
-    : L_CURLY statementList
+    : L_CURLY statementList {}
     ;
 
 statementList
-    : SPACE statementList
-    | NEW_LINE statementList
+    : SPACE statementList {$$ = deepCopy($2);}
+    | NEW_LINE statementList {$$ = deepCopy($2);}
+    | SEMICOLON statementList {$$ = deepCopy($2);}
+    | TAB statementList {$$ = deepCopy($2);}
+    | func_var_call statementList 
     | varDef statementList
-    | var_and_func_ASSIGN statementList
-    | RETURN SPACE LITER statementList
-    | R_CURLY 
+    | return_statement statementList
+    | R_CURLY {}
+    ;
+
+return_statement
+    : RETURN SPACE LITER {$$ = deepCopy($3);}
     ;
 
 %%
 
 void yyerror(const char* s)
 { 
-    fprintf(stderr,"\nParsing error: %s \n",s); 
 }
 
 
@@ -254,7 +321,15 @@ int main(int argc, char **argv)
     vars = new std::map<std::string, int>();
     funcions = new std::map<std::string, contain>();
     Errors = new std::list<std::string>();
-    for(;;)
-        yyparse();
+    if(argc >= 2)   
+        yyin = fopen(argv[1], "r");
+    else
+        yyin = fopen("tmp.go", "r");
+    yylex();
+    yyparse();
+    fclose(yyin);
+    std::cout << str << std:: endl;
+    for(auto it: *Errors)
+        std::cout << it << std::endl;
     return 0;
 }

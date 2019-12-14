@@ -5,6 +5,7 @@
     #include "sheet.h"
     #include <string>
     extern void yyerror(const char* s);
+    extern int str;
 %}
 
 %%
@@ -69,14 +70,14 @@
 "true"      {    
                 yylval.table = (sheet*)malloc(sizeof(sheet));
                 yylval.table->line = (char*)"true";
-                yylval.table->type= TRUE;
+                yylval.table->type= TYPE_BOOL;
                 yylval.table->next = NULL;
                 return TRUE;
             }
 "false"     {   
                 yylval.table = (sheet*)malloc(sizeof(sheet));
                 yylval.table->line = (char*)"false";
-                yylval.table->type= FALSE;
+                yylval.table->type= TYPE_BOOL;
                 yylval.table->next = NULL;
                 return FALSE;
             }
@@ -207,6 +208,7 @@
                 return SPACE;
             }
 "\n"        {
+                ++str;
                 yylval.table = (sheet*)malloc(sizeof(sheet));
                 yylval.table->line = (char*)"newLine";
                 yylval.table->type= NEW_LINE;
@@ -224,7 +226,7 @@
                 yylval.table = (sheet*)malloc(sizeof(sheet));
                 yylval.table->line = (char*)"tab";
                 yylval.table->type= TAB;
-                yylval.table->next = NULL;
+                yylval.table->next = NULL;  
                 return TAB;
             }
 
@@ -246,7 +248,7 @@
                 return UNSIGNED;
             }
 
-"<<EOF>>"   {
+<<EOF>>   {
                 return END_OF_FILE;
             }
 . {yyerror("\nUnknown char");}

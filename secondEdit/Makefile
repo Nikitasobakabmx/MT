@@ -6,3 +6,6 @@ all:
 
 code:
 	code *.y *.l s*.cpp s*.h
+
+run:	
+	./a.out

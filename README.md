@@ -1,3 +1,2 @@
 # MT
-translation methode for languages
-check secondEdit
+translation methode for languages #check secondEdit
